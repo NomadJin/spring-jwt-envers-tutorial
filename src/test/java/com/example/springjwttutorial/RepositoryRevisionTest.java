@@ -1,21 +1,19 @@
 package com.example.springjwttutorial;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.example.springjwttutorial.auth.domain.Account;
 import com.example.springjwttutorial.auth.domain.Authority;
 import com.example.springjwttutorial.auth.repository.AccountRepository;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.Optional;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.data.envers.repository.support.DefaultRevisionMetadata;
 import org.springframework.data.history.Revision;
 import org.springframework.data.history.Revisions;
-
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 public class RepositoryRevisionTest {
@@ -58,5 +56,27 @@ public class RepositoryRevisionTest {
 
 		assertThat(lastChangeRevision).isPresent().hasValueSatisfying(revision -> assertThat(revision.getRevisionNumber()).hasValue(3))
 				.hasValueSatisfying(revision -> assertThat(revision.getEntity()).extracting(Account::getUsername).isEqualTo("updateName"));
+	}
+
+	@Test
+	void deleteRevisionNumber() {
+
+		accountRepository.delete(account);
+
+		Revisions<Integer, Account> revisions = accountRepository.findRevisions(account.getId());
+
+		assertThat(revisions).hasSize(2);
+
+		Iterator<Revision<Integer, Account>> iterator = revisions.iterator();
+		Revision<Integer, Account> initialRevision = iterator.next();
+		Revision<Integer, Account> finalRevision = iterator.next();
+
+		assertThat(initialRevision).satisfies(
+				rev -> assertThat(rev.getEntity()).extracting(Account::getId, Account::getUsername, Account::getPassword)
+						.containsExactly(account.getId(), account.getUsername(), account.getPassword()));
+
+		assertThat(finalRevision).satisfies(rev -> assertThat(rev.getEntity()).extracting(Account::getId, Account::getUsername, Account::getPassword)
+				.containsExactly(account.getId(), null, null));
+
 	}
 }
